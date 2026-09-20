@@ -24,24 +24,24 @@ if _gemini_key:
 
 app = Flask(__name__)
 basedir = os.path.abspath(os.path.dirname(__file__))
+instance_path = os.path.join(basedir, 'instance')
+if not os.path.exists(instance_path):
+    os.makedirs(instance_path)
 
-# Database configuration
-# Vercel/production → Supabase PostgreSQL
-# Local development → SQLite fallback
 database_url = os.getenv("DATABASE_URL")
 
 if database_url:
     app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 else:
     instance_path = os.path.join(basedir, "instance")
-    os.makedirs(instance_path, exist_ok=True)
+
+    if not os.path.exists(instance_path):
+        os.makedirs(instance_path)
 
     app.config["SQLALCHEMY_DATABASE_URI"] = (
         "sqlite:///" + os.path.join(instance_path, "mooduplift.db")
     )
-
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
 with app.app_context():
@@ -64,7 +64,7 @@ def register():
         return jsonify({"error": "User already exists"}), 400
         
     user = User(
-        email=email,
+        email=email,  # type: ignore
         name=name,
         dob=data.get("dob"),
         age=data.get("age"),
@@ -92,7 +92,7 @@ def login():
     # Log user login to admin activity
     try:
         from models import AdminLog as _AdminLog
-        log = _AdminLog(action="user_login", detail=f"User {email} logged in",
+        log = _AdminLog(action="user_login", detail=f"User {email} logged in",  # type: ignore
                         ip_address=request.remote_addr)
         db.session.add(log)
         db.session.commit()
@@ -126,7 +126,7 @@ def sync_history():
         
     for item in history:
         new_session = Session(
-            user_id=user.id,
+            user_id=user.id,  # type: ignore
             date_str=item.get("date"),
             start_mood=item.get("start_mood"),
             target_mood=item.get("target_mood"),
@@ -141,7 +141,7 @@ def sync_history():
         
         for s in item.get("songs") or []:
             db.session.add(SongPlayed(
-                session_id=new_session.id,
+                session_id=new_session.id,  # type: ignore
                 title=s.get("title"),
                 artist=s.get("artist"),
                 youtube_search_query=s.get("youtube_search_query"),
@@ -150,7 +150,7 @@ def sync_history():
             
         for t in item.get("transitions") or []:
             db.session.add(MoodTransition(
-                session_id=new_session.id,
+                session_id=new_session.id,  # type: ignore
                 from_mood=t.get("from"),
                 to_mood=t.get("to"),
                 time_str=t.get("time"),
@@ -210,9 +210,9 @@ def sync_preferences():
     Preference.query.filter_by(user_id=user.id).delete()
     
     for b in blocked:
-        db.session.add(Preference(user_id=user.id, title=b.get("title"), artist=b.get("artist"), pref_type='block'))
+        db.session.add(Preference(user_id=user.id, title=b.get("title"), artist=b.get("artist"), pref_type='block'))  # type: ignore
     for l in liked:
-        db.session.add(Preference(user_id=user.id, title=l.get("title"), artist=l.get("artist"), pref_type='like'))
+        db.session.add(Preference(user_id=user.id, title=l.get("title"), artist=l.get("artist"), pref_type='like'))  # type: ignore
         
     db.session.commit()
     return jsonify({"message": "Preferences synced successfully"}), 200
@@ -536,7 +536,7 @@ def log_song():
         existing.action = action
     else:
         db.session.add(SongPlayLog(
-            user_id=user.id,
+            user_id=user.id,  # type: ignore
             mood=mood,
             title=title,
             artist=artist,
@@ -632,7 +632,7 @@ def log_session_outcome():
         session_date = datetime.utcnow()
 
     log = MoodSessionLog(
-        user_id=user.id,
+        user_id=user.id,  # type: ignore
         session_date=session_date,
         start_mood=data.get("start_mood", ""),
         end_mood=data.get("end_mood"),
@@ -799,7 +799,7 @@ Return ONLY a JSON array like: ["insight 1", "insight 2", "insight 3"]"""
         from models import AiRequestLog as _AiReqLog
         data = request.get_json(silent=True) or {}
         log = _AiReqLog(
-            user_email=data.get("email", ""),
+            user_email=data.get("email", ""),  # type: ignore
             endpoint="get-ai-insights",
             user_mood="",
             prompt_snippet=summary[:500] if 'summary' in dir() else "",
@@ -885,7 +885,7 @@ def _require_admin(fn):
 
 def _log_admin(action, detail=""):
     try:
-        entry = AdminLog(action=action, detail=detail,
+        entry = AdminLog(action=action, detail=detail,  # type: ignore
                          ip_address=request.remote_addr)
         db.session.add(entry)
         db.session.commit()
@@ -996,7 +996,7 @@ def admin_create_user():
         return jsonify({"error": "name, email and password required"}), 400
     if User.query.filter_by(email=email).first():
         return jsonify({"error": "User already exists"}), 400
-    u = User(name=name, email=email, age=data.get("age"), gender=data.get("gender"))
+    u = User(name=name, email=email, age=data.get("age"), gender=data.get("gender"))  # type: ignore
     u.set_password(password)
     db.session.add(u)
     db.session.commit()
