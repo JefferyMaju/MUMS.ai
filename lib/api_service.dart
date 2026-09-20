@@ -11,28 +11,46 @@ import 'app_state.dart';
 //   Desktop/Web      → http://localhost:5000
 
 class ApiService {
-  static const String _base = 'http://10.246.231.125:5000';
-  // Fallback for desktop testing
-  static const String _baseDesktop = 'http://localhost:5000';
+  // ─────────────────────────────────────────────────────────────────────────
+  // Backend configuration
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // Vercel production backend
+  static const String _vercelBase = 'https://mumsai.vercel.app';
+
+  // Local Flask backend - physical Android phone
+  static const String _localAndroidBase = 'http://10.38.142.57:5000';
+
+  // Local Flask backend - desktop/web
+  static const String _localDesktopBase = 'http://localhost:5000';
+
+  // true  = use Vercel
+  // false = use local Flask server
+  static const bool useVercel = true;
+
+  static String get _base {
+    if (useVercel) {
+      return _vercelBase;
+    }
+
+    if (kIsWeb) {
+      return _localDesktopBase;
+    }
+
+    return _localAndroidBase;
+  }
 
   static Future<http.Response> _post(
       String path, Map<String, dynamic> body) async {
-    // Try emulator URL first, fall back to localhost
     final uri = Uri.parse('$_base$path');
-    try {
-      return await http
-          .post(uri,
-              headers: {'Content-Type': 'application/json'},
-              body: jsonEncode(body))
-          .timeout(const Duration(seconds: 30));
-    } catch (_) {
-      final fallbackUri = Uri.parse('$_baseDesktop$path');
-      return await http
-          .post(fallbackUri,
-              headers: {'Content-Type': 'application/json'},
-              body: jsonEncode(body))
-          .timeout(const Duration(seconds: 30));
-    }
+
+    return await http
+        .post(
+          uri,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(body),
+        )
+        .timeout(const Duration(seconds: 60));
   }
 
   // ── Auth ──────────────────────────────────────────────────────────────────
@@ -264,19 +282,20 @@ class ApiService {
   static Future<Map<String, dynamic>> getFeatureToggles() async {
     try {
       final uri = Uri.parse('$_base/get-feature-toggles');
-      final resp = await http.get(uri).timeout(const Duration(seconds: 8));
+
+      final resp = await http.get(uri).timeout(const Duration(seconds: 15));
+
       if (resp.statusCode == 200) {
         return jsonDecode(resp.body) as Map<String, dynamic>;
       }
-    } catch (_) {
-      try {
-        final uri = Uri.parse('$_baseDesktop/get-feature-toggles');
-        final resp = await http.get(uri).timeout(const Duration(seconds: 8));
-        if (resp.statusCode == 200) {
-          return jsonDecode(resp.body) as Map<String, dynamic>;
-        }
-      } catch (_) {}
+
+      debugPrint(
+        'ApiService: getFeatureToggles failed: ${resp.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('ApiService: getFeatureToggles error: $e');
     }
+
     return {};
   }
 
@@ -284,19 +303,20 @@ class ApiService {
   static Future<Map<String, dynamic>> getBranding() async {
     try {
       final uri = Uri.parse('$_base/get-branding');
-      final resp = await http.get(uri).timeout(const Duration(seconds: 8));
+
+      final resp = await http.get(uri).timeout(const Duration(seconds: 15));
+
       if (resp.statusCode == 200) {
         return jsonDecode(resp.body) as Map<String, dynamic>;
       }
-    } catch (_) {
-      try {
-        final uri = Uri.parse('$_baseDesktop/get-branding');
-        final resp = await http.get(uri).timeout(const Duration(seconds: 8));
-        if (resp.statusCode == 200) {
-          return jsonDecode(resp.body) as Map<String, dynamic>;
-        }
-      } catch (_) {}
+
+      debugPrint(
+        'ApiService: getBranding failed: ${resp.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('ApiService: getBranding error: $e');
     }
+
     return {};
   }
 
