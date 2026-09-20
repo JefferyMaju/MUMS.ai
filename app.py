@@ -23,25 +23,24 @@ if _gemini_key:
     _gemini_client = genai.Client(api_key=_gemini_key)
 
 app = Flask(__name__)
-basedir = os.path.abspath(os.path.dirname(__file__))
-instance_path = os.path.join(basedir, 'instance')
-if not os.path.exists(instance_path):
-    os.makedirs(instance_path)
 
+basedir = os.path.abspath(os.path.dirname(__file__))
 database_url = os.getenv("DATABASE_URL")
 
 if database_url:
+    # Production: Supabase PostgreSQL
     app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 else:
+    # Local development: SQLite
     instance_path = os.path.join(basedir, "instance")
-
-    if not os.path.exists(instance_path):
-        os.makedirs(instance_path)
+    os.makedirs(instance_path, exist_ok=True)
 
     app.config["SQLALCHEMY_DATABASE_URI"] = (
         "sqlite:///" + os.path.join(instance_path, "mooduplift.db")
     )
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
 db.init_app(app)
 
 with app.app_context():
