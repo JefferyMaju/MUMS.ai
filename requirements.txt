@@ -1,0 +1,9 @@
+Flask
+Flask-CORS
+Flask-SQLAlchemy
+python-dotenv
+requests
+google-genai
+psycopg2-binary
+transformers
+torch
