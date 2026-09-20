@@ -5,5 +5,3 @@ python-dotenv
 requests
 google-genai
 psycopg2-binary
-transformers
-torch
