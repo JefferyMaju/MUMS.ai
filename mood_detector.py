@@ -1,10 +1,11 @@
 from email.mime import text
-from transformers import pipeline
+import os
+import requests
 
-classifier = pipeline(
-    "text-classification", # type: ignore
-    model="j-hartmann/emotion-english-distilroberta-base",
-    top_k=None
+MODEL_ID = "j-hartmann/emotion-english-distilroberta-base"
+
+HF_API_URL = (
+    f"https://router.huggingface.co/hf-inference/models/{MODEL_ID}"
 )
 
 mood_mapping = {
@@ -16,6 +17,63 @@ mood_mapping = {
     "surprise": "Energised",
     "disgust": "Stressed" 
 }
+
+def _classify_text(text):
+    """
+    Send the text to Hugging Face instead of loading
+    Transformers/PyTorch inside the Vercel function.
+    """
+
+    hf_token = os.getenv("HF_TOKEN")
+
+    if not hf_token:
+        raise RuntimeError("HF_TOKEN is not configured")
+
+    headers = {
+        "Authorization": f"Bearer {hf_token}",
+        "Content-Type": "application/json",
+    }
+
+    payload = {
+        "inputs": text
+    }
+
+    response = requests.post(
+        HF_API_URL,
+        headers=headers,
+        json=payload,
+        timeout=60
+    )
+
+    response.raise_for_status()
+
+    result = response.json()
+
+    # Expected response:
+    # [
+    #   [
+    #       {"label": "sadness", "score": 0.95},
+    #       {"label": "neutral", "score": 0.02},
+    #       ...
+    #   ]
+    # ]
+
+    if not isinstance(result, list) or len(result) == 0:
+        raise RuntimeError(f"Unexpected Hugging Face response: {result}")
+
+    outputs = result[0]
+
+    if not isinstance(outputs, list):
+        outputs = [outputs]
+
+    outputs = sorted(
+        outputs,
+        key=lambda x: x["score"],
+        reverse=True
+    )
+
+    return outputs
+
 
 def detect_mood(text):
     text = text.strip()
